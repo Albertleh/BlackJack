@@ -114,8 +114,8 @@ def play_hand():
 
 def main():
     generate_files()
-    #shuffle_shoe(3)
-    play_hand()
+    shuffle_shoe(3)
+    #play_hand()
 
 
 if __name__ == '__main__':
