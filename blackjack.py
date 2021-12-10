@@ -92,30 +92,78 @@ def get_cardvalue(card: str) -> int:
     else:
         return int(card[:-1])
     
-
-    
 def play_hand():
     player_hand = []
     player_handvalue = 0
     dealer_hand = []
     dealer_handvalue = 0
 
-    # player gets first card
+    # player draws first card
     player_hand.append(draw_card())
     player_handvalue = player_handvalue + get_cardvalue(player_hand[0])
-    print(f"player shows {player_hand[0]} = {player_handvalue}")
-    # deaker draws second card
+    print(f"player shows {player_hand} = {player_handvalue}")
+    # dealer draws first card
     dealer_hand.append(draw_card())
     dealer_handvalue = dealer_handvalue + get_cardvalue(dealer_hand[0])
-    print(f"dealer shows {dealer_hand[0]} = {dealer_handvalue}")
+    print(f"dealer shows {dealer_hand} = {dealer_handvalue}")
+    # player draws second card
+    player_hand.append(draw_card())
+    player_handvalue = player_handvalue + get_cardvalue(player_hand[1])
+    print(f"player shows {player_hand} = {player_handvalue}")
+
+    player_blackjack = False
+    # Check if Player has a BlackJack
+    if player_handvalue == 21:
+        player_blackjack == True
+
+    if player_blackjack == False:
+        bust = False
+        # Player can draw cards until he busts
+        while bust == False:
+            if player_handvalue > 21:
+                bust = True
+            else:
+                action = input(f"{player_handvalue} on a dealer {dealer_handvalue}  Hit or Stand (h/s)?")
+                if action == 'h' or action == 'H':
+                    # Player hits
+                    player_hand.append(draw_card())
+                    player_handvalue = player_handvalue + get_cardvalue(player_hand[len(player_hand)-1])
+                    print(f"player shows {player_hand} = {player_handvalue}")
+                elif action == 's' or action == 'S':
+                    # Player stands
+                    break
+                else:
+                    print("Invalid Input!")
+                    continue
+        
+        #dealer draws cards up to soft 17
+        while dealer_handvalue <= 17 and bust == False:
+            dealer_hand.append(draw_card())
+            dealer_handvalue = dealer_handvalue + get_cardvalue(dealer_hand[-1])
+            print(f"dealer turns {dealer_hand[-1]} = {dealer_handvalue}")
+        
+        # Checks who won
+        if player_handvalue > dealer_handvalue and bust == False:
+            print("player won!")
+        elif player_handvalue == dealer_handvalue and bust == False:
+            print("push!")
+        elif bust == True:
+            print("player busted!")
+        elif bust == False and dealer_handvalue > 21:
+            print("dealer busted!")
+        else:
+            print("dealer won!")
+    else:
+        print("Player has got a BlackJack!")
+
 
 
 
 
 def main():
     generate_files()
-    shuffle_shoe(3)
-    #play_hand()
+    #shuffle_shoe(3)
+    play_hand()
 
 
 if __name__ == '__main__':
