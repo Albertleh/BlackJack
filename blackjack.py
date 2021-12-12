@@ -1,17 +1,9 @@
 import pandas as pd
 import os
+import sys
+from pandas.core.arrays.boolean import BooleanArray
 
-deck_global = pd.DataFrame(['2s','2d','2c','2h','3s','3d','3c','3h','4s','4d','4c','4h','5s','5d','5c','5h','6s','6d','6h','6c','7s','7d','7c','7h','8s','8d','8c','8h','9s','9d','9c','9h','10s','10d','10c','10h','Js','Jd','Jc','Jh','Qs','Qd','Qc','Qh','Ks','Kd','Kc','Kh','As','Ad','Ac','Ah'])
-""" created an additional file for me just to get the line above with the single quotes and commas automatically inserted
-    for me to copy and paste cause I'm a lazy fuck who doesn't like manual work
-    
-    cards = pd.read_csv('deck.txt', header=None)
-    fil = open('copy.txt', 'w+')
-    fil.close()
-    with open('copy.txt', 'a') as fil:
-        for e in range(0, len(cards)-1):
-            fil.write(f"'{cards[0][e]}',")
-"""
+from pandas.core.base import DataError
 
 """ TO DO LISt:
     
@@ -27,6 +19,26 @@ deck_global = pd.DataFrame(['2s','2d','2c','2h','3s','3d','3c','3h','4s','4d','4
     - create docker container for project
     - publish working project on github
 """
+# User settings provided by command prompt
+class Settings:
+    def __init__(self) -> None:
+        if len(sys.argv) == 2:
+            self.decks_in_shoe = sys.argv[1]
+        else:
+            sys.stdout('No arguments provided. Using default settings')
+            self.decks_in_shoe = 3
+        self.deck_global = pd.DataFrame(['2s','2d','2c','2h','3s','3d','3c','3h','4s','4d','4c','4h','5s','5d','5c','5h','6s','6d','6h','6c','7s','7d','7c','7h','8s','8d','8c','8h','9s','9d','9c','9h','10s','10d','10c','10h','Js','Jd','Jc','Jh','Qs','Qd','Qc','Qh','Ks','Kd','Kc','Kh','As','Ad','Ac','Ah'])
+        """ created an additional file for me just to get the line above with the single quotes and commas automatically inserted
+            for me to copy and paste cause I'm lazy and don't like manual work
+            
+            cards = pd.read_csv('deck.txt', header=None)
+            fil = open('copy.txt', 'w+')
+            fil.close()
+            with open('copy.txt', 'a') as fil:
+                for e in range(0, len(cards)-1):
+                    fil.write(f"'{cards[0][e]}',")
+        """
+settings = Settings() 
 
 def generate_files():
     # Checks if deck.txt file exists and create a new one when not 
@@ -34,7 +46,7 @@ def generate_files():
         print('deck.txt not found! File containing a standard 52 Card deck has been created!')
         createf = open('deck.txt', 'w+')
         createf.close()
-        deck_global.to_csv('deck.txt',index=False, header=None)
+        settings.deck_global.to_csv('deck.txt',index=False, header=None)
 
     # Checks if shoe.txt exists and create a new one when not
     if os.path.isfile("./shoe.txt") == False:
@@ -67,6 +79,13 @@ def shuffle_shoe(decks: int):
     print(f"Shoe full of {decks} decks has been shuffled")
 
 def draw_card() -> str:
+    # Shuffle cards when shoe is empty
+    try: 
+        pd.read_csv("shoe.txt", header=None)
+    except pd.errors.EmptyDataError:
+        print("Shoe is empty: Shuffling Cards...")
+        shuffle_shoe(settings.decks_in_shoe)
+        
     before_draw = pd.read_csv("shoe.txt", header=None)
     first_card = before_draw[0][0]
     after_draw = pd.DataFrame()
@@ -109,25 +128,39 @@ def play_hand():
     # player draws second card
     player_hand.append(draw_card())
     player_handvalue = player_handvalue + get_cardvalue(player_hand[1])
+    # Two Aces makes 12 for the player
+    if player_handvalue == 22:
+        player_handvalue = 12
     print(f"player shows {player_hand} = {player_handvalue}")
 
     player_blackjack = False
     # Check if Player has a BlackJack
     if player_handvalue == 21:
-        player_blackjack == True
-
-    if player_blackjack == False:
+        player_blackjack = True
+        print("Player has got a BlackJack!")
+    else:
         bust = False
         # Player can draw cards until he busts
         while bust == False:
             if player_handvalue > 21:
                 bust = True
             else:
-                action = input(f"{player_handvalue} on a dealer {dealer_handvalue}  Hit or Stand (h/s)?")
+                its_an_ace = False
+                # If an Ace comes decide whether to count it as 1 or 11
+                if get_cardvalue(player_hand[len(player_hand)-1]) == 11 and player_handvalue > 21:
+                    player_handvalue -= 10
+                elif get_cardvalue(player_hand[len(player_hand)-1]) == 11 and player_handvalue < 21:
+                    action = input(f"{player_hand} = {player_handvalue} or {player_handvalue-10}  Hit or Stand (h/s)?")
+                    its_an_ace = True
+                else:
+                    action = input(f"{player_handvalue} on a dealer {dealer_handvalue}  Hit or Stand (h/s)?")
                 if action == 'h' or action == 'H':
+                    if its_an_ace == True:
+                        player_handvalue -= 10
                     # Player hits
                     player_hand.append(draw_card())
                     player_handvalue = player_handvalue + get_cardvalue(player_hand[len(player_hand)-1])
+
                     print(f"player shows {player_hand} = {player_handvalue}")
                 elif action == 's' or action == 'S':
                     # Player stands
@@ -137,9 +170,12 @@ def play_hand():
                     continue
         
         #dealer draws cards up to soft 17
-        while dealer_handvalue <= 17 and bust == False:
+        while dealer_handvalue < 17 and bust == False:
             dealer_hand.append(draw_card())
             dealer_handvalue = dealer_handvalue + get_cardvalue(dealer_hand[-1])
+            # If an Ace comes decide whether to count it as 1 or 11
+            if get_cardvalue(dealer_hand[len(dealer_hand)-1]) == 11 and dealer_handvalue > 21:
+                dealer_handvalue -= 10
             print(f"dealer turns {dealer_hand[-1]} = {dealer_handvalue}")
         
         # Checks who won
@@ -153,18 +189,33 @@ def play_hand():
             print("dealer busted!")
         else:
             print("dealer won!")
-    else:
-        print("Player has got a BlackJack!")
 
+    """"
+    UNDER CONSTRUCTION! 
 
-
-
-
+    def strategy_bot(player_handvalue: int, dealer_handvalue: int, splittable: bool ,accuracy_percent: int) -> str:
+        if splittable == True:
+            if player_handvalue == 18 and dealer_handvalue < 10 and dealer_handvalue > 1:
+                return 's'
+            elif player_handvalue == 16:
+                return 's'
+            elif player_handvalue == 14 and dealer_handvalue < 8 and dealer_handvalue > 1:
+                return 's'
+            elif player_handvalue == 10 and dealer_handvalue < 10 and dealer_handvalue > 1:
+                return 's'
+            elif player_handvalue == 8 and dealer_handvalue < 7 and dealer_handvalue > 4:
+                return 's'
+            elif player_handvalue == 6 and dealer_handvalue < 8 and dealer_handvalue > 1:
+                return 's'
+            elif player_handvalue == 4 and dealer_handvalue < 8 and dealer_handvalue > 1:
+                return 's'
+            else:
+                return 'h'
+    """ 
+        
 def main():
     generate_files()
-    #shuffle_shoe(3)
     play_hand()
-
 
 if __name__ == '__main__':
     main()
