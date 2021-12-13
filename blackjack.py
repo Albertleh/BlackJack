@@ -22,11 +22,18 @@ from pandas.core.base import DataError
 # User settings provided by command prompt
 class Settings:
     def __init__(self) -> None:
-        if len(sys.argv) == 2:
+        if len(sys.argv) > 1:
             self.decks_in_shoe = sys.argv[1]
+            # playermodes: manual, bot
+            self.playermode = sys.argv[2]
         else:
-            sys.stdout('No arguments provided. Using default settings')
+            # if no arguments provided starting in default mode
+            sys.stdout.write('No arguments provided. Using default settings?\n')
             self.decks_in_shoe = 3
+            self.playermode = 'manual'
+        self.betsize = 5
+        self.balance = 100
+        self.handnr = 1
         self.deck_global = pd.DataFrame(['2s','2d','2c','2h','3s','3d','3c','3h','4s','4d','4c','4h','5s','5d','5c','5h','6s','6d','6h','6c','7s','7d','7c','7h','8s','8d','8c','8h','9s','9d','9c','9h','10s','10d','10c','10h','Js','Jd','Jc','Jh','Qs','Qd','Qc','Qh','Ks','Kd','Kc','Kh','As','Ad','Ac','Ah'])
         """ created an additional file for me just to get the line above with the single quotes and commas automatically inserted
             for me to copy and paste cause I'm lazy and don't like manual work
@@ -110,21 +117,100 @@ def get_cardvalue(card: str) -> int:
         return 10
     else:
         return int(card[:-1])
+
+def strategy_bot(player_handvalue: int, dealer_handvalue: int, splittable: bool , soft: bool) -> str:
+    if splittable:
+        print("splittable")
+        if player_handvalue == 18 and dealer_handvalue < 10 and dealer_handvalue > 1:
+            return 'split'
+        elif player_handvalue == 16:
+            return 'split'
+        elif player_handvalue == 20:
+            return 's'
+        elif player_handvalue == 14 and dealer_handvalue < 8 and dealer_handvalue > 1:
+            return 'split'
+        elif player_handvalue == 10 and dealer_handvalue < 10 and dealer_handvalue > 1:
+            return 'split'
+        elif player_handvalue == 8 and dealer_handvalue < 7 and dealer_handvalue > 4:
+            return 'split'
+        elif player_handvalue == 6 and dealer_handvalue < 8 and dealer_handvalue > 1:
+            return 'split'
+        elif player_handvalue == 4 and dealer_handvalue < 8 and dealer_handvalue > 1:
+            return 'split'
+        else:
+            return 'h'
+    elif soft:
+        print("is soft")
+        if player_handvalue == 20:
+            return 's'
+        elif player_handvalue == 19:
+            if dealer_handvalue == 6:
+                return 'double'
+            else:
+                return "s"
+        elif player_handvalue == 18:
+            if dealer_handvalue < 7 and dealer_handvalue > 1:
+                return 'double'
+            elif dealer_handvalue < 12 and dealer_handvalue > 8:
+                return 'h'
+            else:
+                return "s"
+        elif player_handvalue == 17 and dealer_handvalue < 7 and dealer_handvalue > 2:
+            return 'double'
+        elif player_handvalue == 16 and dealer_handvalue < 7 and dealer_handvalue > 3:
+            return 'double'
+        elif player_handvalue == 15 and dealer_handvalue < 7 and dealer_handvalue > 3:
+            return 'double'
+        elif player_handvalue == 14 and dealer_handvalue < 7 and dealer_handvalue > 4:
+            return 'double'
+        elif player_handvalue == 13 and dealer_handvalue < 7 and dealer_handvalue > 4:
+            return 'double'
+        else:
+            return "h"
+    else:
+        if player_handvalue < 17 and player_handvalue > 12 and dealer_handvalue < 7 and dealer_handvalue > 1:
+            return "s"
+        elif player_handvalue > 16 and player_handvalue < 22:
+            return 's'
+        elif player_handvalue == 12 and dealer_handvalue < 7 and dealer_handvalue > 3:
+            return 's'
+        elif player_handvalue == 11:
+            return 'double'
+        elif player_handvalue == 10 and dealer_handvalue < 10 and dealer_handvalue > 1:
+            return 'double'
+        elif player_handvalue == 9 and dealer_handvalue < 7 and dealer_handvalue > 2:
+            return 'double'
+        else:
+            return 'h'
+
     
-def play_hand():
+def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand = '', betsize = 0):
     player_hand = []
     player_handvalue = 0
     dealer_hand = []
     dealer_handvalue = 0
+    hand_balance = 0
 
-    # player draws first card
-    player_hand.append(draw_card())
-    player_handvalue = player_handvalue + get_cardvalue(player_hand[0])
-    print(f"player shows {player_hand} = {player_handvalue}")
-    # dealer draws first card
-    dealer_hand.append(draw_card())
-    dealer_handvalue = dealer_handvalue + get_cardvalue(dealer_hand[0])
-    print(f"dealer shows {dealer_hand} = {dealer_handvalue}")
+    if splitmode == False:
+        # player draws first card
+        player_hand.append(draw_card())
+        player_handvalue = player_handvalue + get_cardvalue(player_hand[0])
+        print(f"player shows {player_hand} = {player_handvalue}")
+        # dealer draws first card
+        dealer_hand.append(draw_card())
+        dealer_handvalue = dealer_handvalue + get_cardvalue(dealer_hand[0])
+        print(f"dealer shows {dealer_hand} = {dealer_handvalue}")
+    else:
+        print('entered split instance')
+        # This is the card splitted by the user
+        player_hand.append(player_starting_hand)
+        player_handvalue = player_handvalue + get_cardvalue(player_hand[0])
+        print(f"player shows {player_hand} = {player_handvalue}")
+        # This is the card which all splitted cards play against
+        dealer_hand.append(dealer_starting_hand)
+        dealer_handvalue = dealer_handvalue + get_cardvalue(dealer_hand[0])
+        print(f"dealer shows {dealer_hand} = {dealer_handvalue}")
+
     # player draws second card
     player_hand.append(draw_card())
     player_handvalue = player_handvalue + get_cardvalue(player_hand[1])
@@ -133,12 +219,23 @@ def play_hand():
         player_handvalue = 12
     print(f"player shows {player_hand} = {player_handvalue}")
 
-    player_blackjack = False
     # Check if Player has a BlackJack
     if player_handvalue == 21:
-        player_blackjack = True
         print("Player has got a BlackJack!")
+        hand_balance += betsize*1.5
     else:
+        splittable = False
+        soft = False
+        # If two cards are equal ignoring suits you can split them
+        if player_hand[0][0] == player_hand[1][0]:
+            splittable = True
+        # If the first card is an Ace the handvalue is soft
+        elif player_hand[0][0] == "A":
+            soft = True
+
+        splitted = False
+        hands = [] 
+        action = ''   
         bust = False
         # Player can draw cards until he busts
         while bust == False:
@@ -147,24 +244,60 @@ def play_hand():
             else:
                 its_an_ace = False
                 # If an Ace comes decide whether to count it as 1 or 11
-                if get_cardvalue(player_hand[len(player_hand)-1]) == 11 and player_handvalue > 21:
+                if len(player_hand) == 0:
+                    break
+                elif get_cardvalue(player_hand[len(player_hand)-1]) == 11 and player_handvalue > 21:
                     player_handvalue -= 10
                 elif get_cardvalue(player_hand[len(player_hand)-1]) == 11 and player_handvalue < 21:
-                    action = input(f"{player_hand} = {player_handvalue} or {player_handvalue-10}  Hit or Stand (h/s)?")
+                    # Decide whether the bot makes decisions or the player 
+                    if settings.playermode == "manual":
+                        if splittable:
+                            action = input(f"{player_hand} = {player_handvalue} or {player_handvalue-10}  Hit or Stand (h/s/double/split)?")
+                        else:
+                            action = input(f"{player_hand} = {player_handvalue} or {player_handvalue-10}  Hit or Stand (h/s/double)?")
+                    else:
+                        action = strategy_bot(player_handvalue, dealer_handvalue, splittable, soft)
                     its_an_ace = True
+
                 else:
-                    action = input(f"{player_handvalue} on a dealer {dealer_handvalue}  Hit or Stand (h/s)?")
+                    if settings.playermode == "manual":
+                        if splittable:
+                            action = input(f"{player_hand} = {player_handvalue}  Hit or Stand (h/s/double/split)?")
+                        else:
+                            action = input(f"{player_hand} = {player_handvalue}  Hit or Stand (h/s/double)?")
+                    else:
+                        action = strategy_bot(player_handvalue, dealer_handvalue, splittable, soft)
+                # Player actions
                 if action == 'h' or action == 'H':
-                    if its_an_ace == True:
+                    if its_an_ace:
                         player_handvalue -= 10
                     # Player hits
                     player_hand.append(draw_card())
                     player_handvalue = player_handvalue + get_cardvalue(player_hand[len(player_hand)-1])
-
                     print(f"player shows {player_hand} = {player_handvalue}")
+
                 elif action == 's' or action == 'S':
                     # Player stands
                     break
+                elif action == 'double' or action == 'd':
+                    # Player doubles
+                    if its_an_ace:
+                        player_handvalue -= 10
+                    # Player hits
+                    player_hand.append(draw_card())
+                    player_handvalue = player_handvalue + get_cardvalue(player_hand[len(player_hand)-1])
+                    print(f"player shows {player_hand} = {player_handvalue}")
+                    break
+                # Hands are endlessly splittable with recursion
+                elif action == 'split' or action == 'Split':
+                    splitted = True
+                    hand_balance = play_hand(True, player_hand[-1], dealer_hand[0], betsize)
+                    settings.handnr += 1
+                    player_handvalue -= get_cardvalue(player_hand[-1])
+                    player_hand.remove(player_hand[-1])
+                    print(f"{player_hand} = {player_handvalue}  this is the players hand")
+                    splittable = False
+
                 else:
                     print("Invalid Input!")
                     continue
@@ -177,45 +310,56 @@ def play_hand():
             if get_cardvalue(dealer_hand[len(dealer_hand)-1]) == 11 and dealer_handvalue > 21:
                 dealer_handvalue -= 10
             print(f"dealer turns {dealer_hand[-1]} = {dealer_handvalue}")
-        
+    
+        print(f"---------Hand {settings.handnr} Splitmode={splitmode}---------")
         # Checks who won
         if player_handvalue > dealer_handvalue and bust == False:
             print("player won!")
+            hand_balance += betsize
         elif player_handvalue == dealer_handvalue and bust == False:
             print("push!")
+            hand_balance = 0
         elif bust == True:
             print("player busted!")
+            hand_balance -= betsize
         elif bust == False and dealer_handvalue > 21:
             print("dealer busted!")
+            hand_balance += betsize
         else:
             print("dealer won!")
+            hand_balance -= betsize
+    settings.handnr = 1
+    return hand_balance
+            
 
-    """"
-    UNDER CONSTRUCTION! 
 
-    def strategy_bot(player_handvalue: int, dealer_handvalue: int, splittable: bool ,accuracy_percent: int) -> str:
-        if splittable == True:
-            if player_handvalue == 18 and dealer_handvalue < 10 and dealer_handvalue > 1:
-                return 's'
-            elif player_handvalue == 16:
-                return 's'
-            elif player_handvalue == 14 and dealer_handvalue < 8 and dealer_handvalue > 1:
-                return 's'
-            elif player_handvalue == 10 and dealer_handvalue < 10 and dealer_handvalue > 1:
-                return 's'
-            elif player_handvalue == 8 and dealer_handvalue < 7 and dealer_handvalue > 4:
-                return 's'
-            elif player_handvalue == 6 and dealer_handvalue < 8 and dealer_handvalue > 1:
-                return 's'
-            elif player_handvalue == 4 and dealer_handvalue < 8 and dealer_handvalue > 1:
-                return 's'
-            else:
-                return 'h'
-    """ 
+
+        
         
 def main():
+    broke = False
+    # Can set value to an integer or: "til broke"
+    play_hands = 100
     generate_files()
-    play_hand()
+    #shuffle_shoe(10)
+    
+    if play_hands != 'til broke' and not broke:
+        for e in range(1,100):
+            if settings.balance >= settings.betsize:
+                print(f"Current balance: {settings.balance}$")
+                settings.balance += play_hand(False,'','',5)
+            else:
+                break
+    else:
+        while not broke:
+            if settings.balance >= settings.betsize:
+                print(f"Current balance: {settings.balance}$")
+                settings.balance += play_hand(False,'','',5)
+            else:
+                broke = True
+        print("You are broke!")
+    
+    
 
 if __name__ == '__main__':
     main()
