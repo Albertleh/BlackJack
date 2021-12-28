@@ -1,6 +1,8 @@
 import pandas as pd
 import os
 import sys
+import matplotlib.pyplot as plt
+
 from pandas.core.arrays.boolean import BooleanArray
 
 from pandas.core.base import DataError
@@ -23,16 +25,22 @@ from pandas.core.base import DataError
 class Settings:
     def __init__(self) -> None:
         if len(sys.argv) > 1:
-            self.decks_in_shoe = sys.argv[1]
-            # playermodes: manual, bot
+            self.decks_in_shoe = int(sys.argv[1])
+            # playermodes: manual, auto, autocount
             self.playermode = sys.argv[2]
         else:
             # if no arguments provided starting in default mode
             sys.stdout.write('No arguments provided. Using default settings?\n')
-            self.decks_in_shoe = 3
+            self.decks_in_shoe = 4
             self.playermode = 'manual'
+        
+        self.running_count_history = []
+        self.running_count = 0
+        self.true_count = 0
+
+        self.betsize_history = []
         self.betsize = 5
-        self.balance = 100
+        self.balance = 2000
         self.handnr = 1
         self.deck_global = pd.DataFrame(['2s','2d','2c','2h','3s','3d','3c','3h','4s','4d','4c','4h','5s','5d','5c','5h','6s','6d','6h','6c','7s','7d','7c','7h','8s','8d','8c','8h','9s','9d','9c','9h','10s','10d','10c','10h','Js','Jd','Jc','Jh','Qs','Qd','Qc','Qh','Ks','Kd','Kc','Kh','As','Ad','Ac','Ah'])
         """ created an additional file for me just to get the line above with the single quotes and commas automatically inserted
@@ -85,6 +93,21 @@ def shuffle_shoe(decks: int):
     postshuffle.to_csv('shoe.txt',index=False, header=None)
     print(f"Shoe full of {decks} decks has been shuffled")
 
+    settings.running_count = 0
+
+
+def get_cardvalue(card: str) -> int:
+    if 'A' in card:
+        return 11
+    elif 'K' in card:
+        return 10
+    elif 'Q' in card:
+        return 10
+    elif 'J' in card:
+        return 10
+    else:
+        return int(card[:-1])
+
 def draw_card() -> str:
     # Shuffle cards when shoe is empty
     try: 
@@ -104,19 +127,20 @@ def draw_card() -> str:
         after_draw.to_csv('shoe.txt',index=False, header=None)
     with open("cardtray.txt", 'a') as f:
         f.write(f"{first_card}\n")
-    return str(first_card)
 
-def get_cardvalue(card: str) -> int:
-    if 'A' in card:
-        return 11
-    elif 'K' in card:
-        return 10
-    elif 'Q' in card:
-        return 10
-    elif 'J' in card:
-        return 10
-    else:
-        return int(card[:-1])
+    # implement carrd counting
+    if settings.playermode == 'autocount':
+        if get_cardvalue(first_card) >= 10:
+            settings.running_count -= 1
+        elif get_cardvalue(first_card) <= 6:
+            settings.running_count += 1
+        else:
+            pass
+        # True count = running count/Decks Remaining
+        settings.true_count = settings.running_count/settings.decks_in_shoe
+        settings.running_count_history.append(settings.true_count)
+
+    return str(first_card)
 
 def strategy_bot(player_handvalue: int, dealer_handvalue: int, splittable: bool , soft: bool) -> str:
     if splittable:
@@ -195,21 +219,25 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
         # player draws first card
         player_hand.append(draw_card())
         player_handvalue = player_handvalue + get_cardvalue(player_hand[0])
-        print(f"player shows {player_hand} = {player_handvalue}")
+        if settings.playermode == 'manual':
+            print(f"player shows {player_hand} = {player_handvalue}")
         # dealer draws first card
         dealer_hand.append(draw_card())
         dealer_handvalue = dealer_handvalue + get_cardvalue(dealer_hand[0])
-        print(f"dealer shows {dealer_hand} = {dealer_handvalue}")
+        if settings.playermode == 'manual':
+            print(f"dealer shows {dealer_hand} = {dealer_handvalue}")
     else:
         print('entered split instance')
         # This is the card splitted by the user
         player_hand.append(player_starting_hand)
         player_handvalue = player_handvalue + get_cardvalue(player_hand[0])
-        print(f"player shows {player_hand} = {player_handvalue}")
+        if settings.playermode == 'manual':
+            print(f"player shows {player_hand} = {player_handvalue}")
         # This is the card which all splitted cards play against
         dealer_hand.append(dealer_starting_hand)
         dealer_handvalue = dealer_handvalue + get_cardvalue(dealer_hand[0])
-        print(f"dealer shows {dealer_hand} = {dealer_handvalue}")
+        if settings.playermode == 'manual':
+            print(f"dealer shows {dealer_hand} = {dealer_handvalue}")
 
     # player draws second card
     player_hand.append(draw_card())
@@ -217,7 +245,8 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
     # Two Aces makes 12 for the player
     if player_handvalue == 22:
         player_handvalue = 12
-    print(f"player shows {player_hand} = {player_handvalue}")
+    if settings.playermode == 'manual':
+        print(f"player shows {player_hand} = {player_handvalue}")
 
     # Check if Player has a BlackJack
     if player_handvalue == 21:
@@ -252,9 +281,9 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
                     # Decide whether the bot makes decisions or the player 
                     if settings.playermode == "manual":
                         if splittable:
-                            action = input(f"{player_hand} = {player_handvalue} or {player_handvalue-10}  Hit or Stand (h/s/double/split)?")
+                            action = input(f"{player_hand} = {player_handvalue} or {player_handvalue-10} on a dealer {dealer_handvalue}  Hit or Stand (h/s/double/split)?")
                         else:
-                            action = input(f"{player_hand} = {player_handvalue} or {player_handvalue-10}  Hit or Stand (h/s/double)?")
+                            action = input(f"{player_hand} = {player_handvalue} or {player_handvalue-10} on a dealer {dealer_handvalue}  Hit or Stand (h/s/double)?")
                     else:
                         action = strategy_bot(player_handvalue, dealer_handvalue, splittable, soft)
                     its_an_ace = True
@@ -262,9 +291,9 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
                 else:
                     if settings.playermode == "manual":
                         if splittable:
-                            action = input(f"{player_hand} = {player_handvalue}  Hit or Stand (h/s/double/split)?")
+                            action = input(f"{player_hand} = {player_handvalue} on a dealer {dealer_handvalue}  Hit or Stand (h/s/double/split)?")
                         else:
-                            action = input(f"{player_hand} = {player_handvalue}  Hit or Stand (h/s/double)?")
+                            action = input(f"{player_hand} = {player_handvalue} on a dealer {dealer_handvalue}  Hit or Stand (h/s/double)?")
                     else:
                         action = strategy_bot(player_handvalue, dealer_handvalue, splittable, soft)
                 # Player actions
@@ -274,7 +303,8 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
                     # Player hits
                     player_hand.append(draw_card())
                     player_handvalue = player_handvalue + get_cardvalue(player_hand[len(player_hand)-1])
-                    print(f"player shows {player_hand} = {player_handvalue}")
+                    if settings.playermode == 'manual':
+                        print(f"player shows {player_hand} = {player_handvalue}")
 
                 elif action == 's' or action == 'S':
                     # Player stands
@@ -286,7 +316,8 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
                     # Player hits
                     player_hand.append(draw_card())
                     player_handvalue = player_handvalue + get_cardvalue(player_hand[len(player_hand)-1])
-                    print(f"player shows {player_hand} = {player_handvalue}")
+                    if settings.playermode == 'manual':
+                        print(f"player shows {player_hand} = {player_handvalue}")
                     break
                 # Hands are endlessly splittable with recursion
                 elif action == 'split' or action == 'Split':
@@ -295,7 +326,8 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
                     settings.handnr += 1
                     player_handvalue -= get_cardvalue(player_hand[-1])
                     player_hand.remove(player_hand[-1])
-                    print(f"{player_hand} = {player_handvalue}  this is the players hand")
+                    if settings.playermode == 'manual':
+                        print(f"{player_hand} = {player_handvalue}  this is the players hand")
                     splittable = False
 
                 else:
@@ -309,9 +341,9 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
             # If an Ace comes decide whether to count it as 1 or 11
             if get_cardvalue(dealer_hand[len(dealer_hand)-1]) == 11 and dealer_handvalue > 21:
                 dealer_handvalue -= 10
-            print(f"dealer turns {dealer_hand[-1]} = {dealer_handvalue}")
+            if settings.playermode == 'manual':
+                print(f"dealer turns {dealer_hand[-1]} = {dealer_handvalue}")
     
-        print(f"---------Hand {settings.handnr} Splitmode={splitmode}---------")
         # Checks who won
         if player_handvalue > dealer_handvalue and bust == False:
             print("player won!")
@@ -331,34 +363,61 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
     settings.handnr = 1
     return hand_balance
             
-
+def plot_money(bankroll_history) -> None:
+    sns.set_theme(style="darkgrid")
+    sns.lineplot(x="hand", y="money", data = bankroll_history)
 
 
         
         
 def main():
     broke = False
+    bankroll_history_history = []
     # Can set value to an integer or: "til broke"
-    play_hands = 100
+    play_hands = 500
     generate_files()
-    #shuffle_shoe(10)
+    shuffle_shoe(4)
     
     if play_hands != 'til broke' and not broke:
-        for e in range(1,100):
+        for e in range(1,play_hands):
             if settings.balance >= settings.betsize:
-                print(f"Current balance: {settings.balance}$")
-                settings.balance += play_hand(False,'','',5)
+                print(f"Current balance: {settings.balance}$ \nTrueCount:       {settings.true_count} \n ")
+
+                if settings.playermode == 'autocount':
+                    if settings.true_count <= 0:
+                        betsize = settings.betsize
+                    elif settings.true_count <= 1 and settings.true_count >=0:
+                        betsize = settings.betsize * (settings.true_count + 1)
+                    else:
+                        betsize = settings.betsize * settings.true_count * 2
+                    settings.balance += play_hand(False,'','',betsize)
+                    settings.betsize_history.append(betsize)
+                else:    
+                    settings.balance += play_hand(False,'','',settings.betsize)
+                bankroll_history_history.append(settings.balance)
             else:
                 break
     else:
         while not broke:
+
             if settings.balance >= settings.betsize:
                 print(f"Current balance: {settings.balance}$")
-                settings.balance += play_hand(False,'','',5)
+                bankroll_history_history.append(settings.balance)
+                settings.balance += play_hand(False,'','',settings.betsize)
             else:
                 broke = True
         print("You are broke!")
-    
+
+
+    fig, axs = plt.subplots(3)
+    fig.suptitle('History')
+    axs[0].plot(pd.DataFrame(bankroll_history_history))
+    axs[0].set_title('Bankroll')
+    axs[1].plot(pd.DataFrame(settings.running_count_history))
+    axs[1].set_title('True Running Count')
+    axs[2].plot(pd.DataFrame(settings.betsize_history))
+    axs[2].set_title('Betsize')
+    plt.show()
     
 
 if __name__ == '__main__':
