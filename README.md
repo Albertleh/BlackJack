@@ -6,7 +6,7 @@ And there is an automatic mode where the ai uses basic strategy as well as card 
 
 ## How to run
 
-First install Matplotlib aswell as pandas
+First you need to install Matplotlib and Pndas using following commands
 ```
 $ pip install matplotlib
 $ pip install pandas
