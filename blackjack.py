@@ -75,7 +75,6 @@ def generate_files():
         createf = open('cardtray.txt', 'w+')
         createf.close()
 
-
 def shuffle_shoe(decks: int): 
     preshuffle = pd.read_csv("deck.txt", header=None)
     postshuffle = preshuffle.sample(frac = decks, replace=True)
@@ -94,7 +93,6 @@ def shuffle_shoe(decks: int):
     print(f"Shoe full of {decks} decks has been shuffled")
 
     settings.running_count = 0
-
 
 def get_cardvalue(card: str) -> int:
     if 'A' in card:
@@ -206,8 +204,7 @@ def strategy_bot(player_handvalue: int, dealer_handvalue: int, splittable: bool 
             return 'double'
         else:
             return 'h'
-
-    
+ 
 def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand = '', betsize = 0):
     player_hand = []
     player_handvalue = 0
@@ -362,14 +359,7 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
             hand_balance -= betsize
     settings.handnr = 1
     return hand_balance
-            
-def plot_money(bankroll_history) -> None:
-    sns.set_theme(style="darkgrid")
-    sns.lineplot(x="hand", y="money", data = bankroll_history)
-
-
-        
-        
+                
 def main():
     broke = False
     bankroll_history_history = []
@@ -407,8 +397,6 @@ def main():
             else:
                 broke = True
         print("You are broke!")
-
-
     fig, axs = plt.subplots(3)
     fig.suptitle('History')
     axs[0].plot(pd.DataFrame(bankroll_history_history))
