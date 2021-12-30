@@ -14,7 +14,8 @@ $ pip install pandas
 ```
 Now you can run the app using following command
 ```
-$ python blackjack.py [how many decks should be in the shoe] [gamemode (manual, auto, autocount)] [how many hands should be played] [betsize for 1 hand] [starting money(bankroll)] 
+$ python blackjack.py [how many decks should be in the shoe] [gamemode (manual, auto, autocount)] 
+  [how many hands should be played] [betsize for 1 hand] [starting money(bankroll)] 
 
 For example:
-$ python blackjack.py 4 manual
+$ python blackjack.py 4 autocount 100 5 1000
