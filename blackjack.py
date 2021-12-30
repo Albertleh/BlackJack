@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import sys
 import matplotlib.pyplot as plt
+import time
 
 from pandas.core.arrays.boolean import BooleanArray
 
@@ -28,19 +29,26 @@ class Settings:
             self.decks_in_shoe = int(sys.argv[1])
             # playermodes: manual, auto, autocount
             self.playermode = sys.argv[2]
+            # number of hands to play
+            self.play_hands = int(sys.argv[3])
+            # amount per round to bet
+            self.betsize = int(sys.argv[4])
+            # initial chipstack value
+            self.balance = int(sys.argv[5])
         else:
             # if no arguments provided starting in default mode
             sys.stdout.write('No arguments provided. Using default settings?\n')
+            time.sleep(1)
             self.decks_in_shoe = 4
             self.playermode = 'manual'
+            self.play_hands = 10
+            self.betsize = 5
+            self.balance = 1000
         
         self.running_count_history = []
+        self.betsize_history = []
         self.running_count = 0
         self.true_count = 0
-
-        self.betsize_history = []
-        self.betsize = 5
-        self.balance = 2000
         self.handnr = 1
         self.deck_global = pd.DataFrame(['2s','2d','2c','2h','3s','3d','3c','3h','4s','4d','4c','4h','5s','5d','5c','5h','6s','6d','6h','6c','7s','7d','7c','7h','8s','8d','8c','8h','9s','9d','9c','9h','10s','10d','10c','10h','Js','Jd','Jc','Jh','Qs','Qd','Qc','Qh','Ks','Kd','Kc','Kh','As','Ad','Ac','Ah'])
         """ created an additional file for me just to get the line above with the single quotes and commas automatically inserted
@@ -91,7 +99,7 @@ def shuffle_shoe(decks: int):
             print("cardtray cleared")
     postshuffle.to_csv('shoe.txt',index=False, header=None)
     print(f"Shoe full of {decks} decks has been shuffled")
-
+    # reset running count 
     settings.running_count = 0
 
 def get_cardvalue(card: str) -> int:
@@ -127,7 +135,7 @@ def draw_card() -> str:
         f.write(f"{first_card}\n")
 
     # implement carrd counting
-    if settings.playermode == 'autocount':
+    if settings.playermode != '':
         if get_cardvalue(first_card) >= 10:
             settings.running_count -= 1
         elif get_cardvalue(first_card) <= 6:
@@ -197,14 +205,17 @@ def strategy_bot(player_handvalue: int, dealer_handvalue: int, splittable: bool 
         elif player_handvalue == 12 and dealer_handvalue < 7 and dealer_handvalue > 3:
             return 's'
         elif player_handvalue == 11:
-            return 'double'
+            if dealer_handvalue == 11:
+                return 'h'
+            else:
+                return 'double'
         elif player_handvalue == 10 and dealer_handvalue < 10 and dealer_handvalue > 1:
             return 'double'
         elif player_handvalue == 9 and dealer_handvalue < 7 and dealer_handvalue > 2:
             return 'double'
         else:
             return 'h'
- 
+    
 def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand = '', betsize = 0):
     player_hand = []
     player_handvalue = 0
@@ -259,9 +270,8 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
         elif player_hand[0][0] == "A":
             soft = True
 
-        splitted = False
-        hands = [] 
         action = ''   
+        correct_action = ''
         bust = False
         # Player can draw cards until he busts
         while bust == False:
@@ -281,6 +291,13 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
                             action = input(f"{player_hand} = {player_handvalue} or {player_handvalue-10} on a dealer {dealer_handvalue}  Hit or Stand (h/s/double/split)?")
                         else:
                             action = input(f"{player_hand} = {player_handvalue} or {player_handvalue-10} on a dealer {dealer_handvalue}  Hit or Stand (h/s/double)?")
+
+                        correct_action = strategy_bot(player_handvalue, dealer_handvalue, splittable, soft)
+                        if correct_action == action:
+                            print('CORRECT!')
+                        else:
+                            print(f'FALSE! You should always {correct_action} !')
+
                     else:
                         action = strategy_bot(player_handvalue, dealer_handvalue, splittable, soft)
                     its_an_ace = True
@@ -293,6 +310,14 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
                             action = input(f"{player_hand} = {player_handvalue} on a dealer {dealer_handvalue}  Hit or Stand (h/s/double)?")
                     else:
                         action = strategy_bot(player_handvalue, dealer_handvalue, splittable, soft)
+                    
+                    correct_action = strategy_bot(player_handvalue, dealer_handvalue, splittable, soft)
+                    if correct_action == action:
+                        print('CORRECT!')
+                    elif action == 'd' and correct_action == 'double':
+                        print('CORRECT!')
+                    else:
+                        print(f'FALSE! You should always {correct_action} !')
                 # Player actions
                 if action == 'h' or action == 'H':
                     if its_an_ace:
@@ -333,6 +358,8 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
         
         #dealer draws cards up to soft 17
         while dealer_handvalue < 17 and bust == False:
+            if settings.playermode == 'manual':
+                time.sleep(1)
             dealer_hand.append(draw_card())
             dealer_handvalue = dealer_handvalue + get_cardvalue(dealer_hand[-1])
             # If an Ace comes decide whether to count it as 1 or 11
@@ -340,7 +367,10 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
                 dealer_handvalue -= 10
             if settings.playermode == 'manual':
                 print(f"dealer turns {dealer_hand[-1]} = {dealer_handvalue}")
-    
+
+        if settings.playermode == 'manual':
+            time.sleep(1)
+
         # Checks who won
         if player_handvalue > dealer_handvalue and bust == False:
             print("player won!")
@@ -359,18 +389,18 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
             hand_balance -= betsize
     settings.handnr = 1
     return hand_balance
-                
+            
 def main():
     broke = False
     bankroll_history_history = []
     # Can set value to an integer or: "til broke"
-    play_hands = 500
     generate_files()
     shuffle_shoe(4)
     
-    if play_hands != 'til broke' and not broke:
-        for e in range(1,play_hands):
+    if settings.play_hands != 'til broke' and not broke:
+        for e in range(1,settings.play_hands):
             if settings.balance >= settings.betsize:
+                print('_________________________')
                 print(f"Current balance: {settings.balance}$ \nTrueCount:       {settings.true_count} \n ")
 
                 if settings.playermode == 'autocount':
@@ -385,6 +415,7 @@ def main():
                 else:    
                     settings.balance += play_hand(False,'','',settings.betsize)
                 bankroll_history_history.append(settings.balance)
+                settings.betsize_history.append(settings.betsize)
             else:
                 break
     else:
@@ -397,16 +428,23 @@ def main():
             else:
                 broke = True
         print("You are broke!")
+    print("\nGenerating Player Stats..")
+
     fig, axs = plt.subplots(3)
     fig.suptitle('History')
     axs[0].plot(pd.DataFrame(bankroll_history_history))
-    axs[0].set_title('Bankroll')
+    axs[0].set_ylabel('Bankroll')
+    axs[0].set_xlabel('Hands Played')
+
     axs[1].plot(pd.DataFrame(settings.running_count_history))
-    axs[1].set_title('True Running Count')
+    axs[1].set_ylabel('True Running Count')
+    axs[1].set_xlabel('Cards Disclosed')
+
     axs[2].plot(pd.DataFrame(settings.betsize_history))
-    axs[2].set_title('Betsize')
+    axs[2].set_ylabel('Betsize')
+    axs[2].set_xlabel('Hands Played')
     plt.show()
     
-
 if __name__ == '__main__':
     main()
+ 
