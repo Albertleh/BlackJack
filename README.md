@@ -7,7 +7,7 @@ https://www.blackjackapprenticeship.com/how-to-count-cards/
 
 ## How to run
 
-First you need to install Matplotlib and Pndas using following commands
+First you need to install Matplotlib and Pandas using following commands
 ```
 $ pip install matplotlib
 $ pip install pandas
