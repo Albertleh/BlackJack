@@ -334,6 +334,7 @@ def play_hand(splitmode = False, player_starting_hand = '', dealer_starting_hand
                     break
                 elif action == 'double' or action == 'd':
                     # Player doubles
+                    betsize *= 2
                     if its_an_ace:
                         player_handvalue -= 10
                     # Player hits
